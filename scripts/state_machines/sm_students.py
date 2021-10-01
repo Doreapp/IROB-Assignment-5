@@ -2,6 +2,8 @@
 
 import numpy as np
 from numpy import linalg as LA
+from geometry_msgs import msg
+import math
 
 import rospy
 from geometry_msgs.msg import Twist
@@ -77,6 +79,7 @@ class StateMachine(object):
         aruco_pose_msg.header.stamp = rospy.Time.now()
         self.aruco_pose_pub.publish(aruco_pose_msg)
 
+
         # Init state machine
         self.state = 0
         rospy.sleep(3)
@@ -89,6 +92,7 @@ class StateMachine(object):
             # State 0: Move the robot "manually" to door
             if self.state == 0:
                 try:
+                    print("GRAAAAAAAAAAAAAB")
                     rospy.loginfo("%s: Picking the cube", self.node_name)
                     pick_srv = rospy.ServiceProxy(self.pick_srv_nm, SetBool)
                     pick_req = pick_srv()
@@ -102,13 +106,68 @@ class StateMachine(object):
 
                     rospy.sleep(3)
                 
-                except rospy.ServiceException, e:
-                    print "Service call to pick server failed: %s"%e
+                except rospy.ServiceException as e:
+                    print ("Service call to pick server failed: %s"%e)
                     self.state = 5
 
             if self.state == 1:
-                rospy.loginfo("State 1 should start")
-                self.state = 4
+                print("TUUUUUUUUUUUUURN")
+                turn_twist_msg = Twist()
+                turn_twist_msg.angular.z = math.pi
+
+                now = rospy.Time.now()
+                rate = rospy.Rate(10)
+
+                while rospy.Time.now() < now + rospy.Duration.from_sec(1.5):
+                    self.cmd_vel_pub.publish(turn_twist_msg)
+                    rate.sleep() 
+                self.state += 1
+            
+            if self.state == 2:
+                print("WAAAAAAAAAAAAAAALK")
+                walk_twist_msg = Twist()
+                walk_twist_msg.linear.x = 1
+
+                now = rospy.Time.now()
+                rate = rospy.Rate(10)
+
+                while rospy.Time.now() < now + rospy.Duration.from_sec(1):
+                    self.cmd_vel_pub.publish(walk_twist_msg)
+                    rate.sleep() 
+                self.state += 1
+            
+            if self.state == 3:
+                try:
+                    print("PLACEEEEEEEE")
+                    rospy.loginfo("%s: Placing the cube", self.node_name)
+                    place_srv = rospy.ServiceProxy(self.place_srv_nm, SetBool)
+                    place_req = place_srv()
+                    
+                    if place_req.success == True:
+                        self.state += 1
+                        rospy.loginfo("%s: Placing succeded!", self.node_name)
+                    else:
+                        rospy.loginfo("%s: Placing failed!", self.node_name)
+                        self.state = 5
+
+                    rospy.sleep(3)
+                
+                except rospy.ServiceException as e:
+                    print ("Service call to pick server failed: %s"%e)
+                    self.state = 5
+
+
+    
+            self.state = 4
+
+
+            
+
+
+
+
+
+
 
             # Error handling
             if self.state == 5:
