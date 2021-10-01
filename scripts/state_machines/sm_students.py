@@ -33,6 +33,7 @@ class StateMachine(object):
 
         # Access rosparams
         self.cmd_vel_top = rospy.get_param(rospy.get_name() + '/cmd_vel_topic')
+        self.aruco_pose_top = rospy.get_param(rospy.get_name() + '/aruco_pose_topic')
 
         self.mv_head_srv_nm = rospy.get_param(rospy.get_name() + '/move_head_srv')
         self.pick_srv_nm = rospy.get_param(rospy.get_name() + '/pick_srv')
@@ -51,7 +52,7 @@ class StateMachine(object):
 
         # Instantiate publishers
         self.cmd_vel_pub = rospy.Publisher(self.cmd_vel_top, Twist, queue_size=10)
-        self.grasp_poses_pub = rospy.Publisher(self.cmd_vel_top, Twist, queue_size=10)
+        self.aruco_pose_pub = rospy.Publisher(self.aruco_pose_top, PoseStamped, queue_size=10, latch = True)
 
         # Set up action clients
         rospy.loginfo("%s: Waiting for play_motion action server...", self.node_name)
@@ -60,6 +61,21 @@ class StateMachine(object):
             rospy.logerr("%s: Could not connect to /play_motion action server", self.node_name)
             exit()
         rospy.loginfo("%s: Connected to play_motion action server", self.node_name)
+
+        rospy.loginfo("%s: Publishing cube pose", self.node_name)
+
+        cube_pose = self.cube_pose.split(',')
+        aruco_pose_msg = PoseStamped()
+        aruco_pose_msg.header.frame_id = "base_footprint"
+        aruco_pose_msg.pose.position.x = float(cube_pose[0])
+        aruco_pose_msg.pose.position.y = float(cube_pose[1])
+        aruco_pose_msg.pose.position.z = float(cube_pose[2])
+        aruco_pose_msg.pose.orientation.x = float(cube_pose[3])
+        aruco_pose_msg.pose.orientation.y = float(cube_pose[4])
+        aruco_pose_msg.pose.orientation.z = float(cube_pose[5])
+        aruco_pose_msg.pose.orientation.w = float(cube_pose[6])
+        aruco_pose_msg.header.stamp = rospy.Time.now()
+        self.aruco_pose_pub.publish(aruco_pose_msg)
 
         # Init state machine
         self.state = 0
