@@ -72,7 +72,23 @@ class StateMachine(object):
             
             # State 0: Move the robot "manually" to door
             if self.state == 0:
-                self.pick()
+                try:
+                    rospy.loginfo("%s: Picking the cube", self.node_name)
+                    pick_srv = rospy.ServiceProxy(self.pick_srv_nm, SetBool)
+                    pick_req = pick_srv()
+                    
+                    if pick_req.success == True:
+                        self.state += 1
+                        rospy.loginfo("%s: Picking succeded!", self.node_name)
+                    else:
+                        rospy.loginfo("%s: Picking failed!", self.node_name)
+                        self.state = 5
+
+                    rospy.sleep(3)
+                
+                except rospy.ServiceException, e:
+                    print "Service call to pick server failed: %s"%e
+                    self.state = 5
 
             if self.state == 1:
                 rospy.loginfo("State 1 should start")
@@ -85,74 +101,6 @@ class StateMachine(object):
 
         rospy.loginfo("%s: State machine finished!", self.node_name)
         return
-
-    def pick(self):
-        progress = 0
-        while not rospy.is_shutdown() and progress < 2:
-            if progress == 0:
-                rospy.loginfo("Call to pregrasp")
-                goal = PlayMotionGoal()
-                goal.motion_name = 'pregrasp'
-                goal.skip_planning = True
-                self.play_motion_ac.send_goal(goal)
-                
-                success_pregrasp = self.play_motion_ac.wait_for_result(rospy.Duration(100.0))
-
-                if success_pregrasp:
-                    rospy.loginfo("Arm ready to move to cube")
-                    progress += 1
-                else:
-                    self.play_motion_ac.cancel_goal()
-                    rospy.logerr("%s: play_motion failed to pregrasp, reset simulation", self.node_name)
-                    progress = 5
-
-                rospy.sleep(1)
-
-            if progress == 1:
-                try:
-                    rospy.loginfo("%s: Picking the cube", self.node_name)
-                    pick_srv = rospy.ServiceProxy(self.pick_srv_nm, SetBool)
-                    pick_req = pick_srv()
-                    
-                    if pick_req.success == True:
-                        progress += 1
-                        rospy.loginfo("%s: Picking succeded!", self.node_name)
-                    else:
-                        rospy.loginfo("%s: Picking failed!", self.node_name)
-                        progress = 5
-
-                    rospy.sleep(3)
-                
-                except rospy.ServiceException, e:
-                    print "Service call to pick server failed: %s"%e
-                    progress = 5
-
-            if progress == 2:
-                rospy.loginfo("Call to pick_final_pose")
-                goal = PlayMotionGoal()
-                goal.motion_name = 'pick_final_pose'
-                goal.skip_planning = True
-                self.play_motion_ac.send_goal(goal)
-                
-                success_pick_final_pose = self.play_motion_ac.wait_for_result(rospy.Duration(100.0))
-
-                if success_pick_final_pose:
-                    rospy.loginfo("Arm ready to grasp")
-                    progress += 1
-                else:
-                    self.play_motion_ac.cancel_goal()
-                    rospy.logerr("%s: play_motion failed to pick_final_pose, reset simulation", self.node_name)
-                    progress = 5
-
-                rospy.sleep(1)
-        if progress == 5:
-            rospy.logerr("%s: Pick failed", self.node_name)
-            self.state = 5
-        else:
-            rospy.loginfo("%s: Pick successful", self.node_name)
-            self.state += 1
-
-            
 
 
 # import py_trees as pt, py_trees_ros as ptr
