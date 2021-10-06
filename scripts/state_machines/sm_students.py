@@ -43,8 +43,6 @@ class StateMachine(object):
 
         self.cube_pose = rospy.get_param(rospy.get_name() + '/cube_pose')
 
-        print("Cube pose", self.cube_pose)
-
         # Subscribe to topics
 
         # Wait for service providers
@@ -92,7 +90,6 @@ class StateMachine(object):
             # State 0: Move the robot "manually" to door
             if self.state == 0:
                 try:
-                    print("GRAAAAAAAAAAAAAB")
                     rospy.loginfo("%s: Picking the cube", self.node_name)
                     pick_srv = rospy.ServiceProxy(self.pick_srv_nm, SetBool)
                     pick_req = pick_srv()
@@ -111,20 +108,20 @@ class StateMachine(object):
                     self.state = 5
 
             if self.state == 1:
-                print("TUUUUUUUUUUUUURN")
+                rospy.loginfo("%s: Turning", self.node_name)
                 turn_twist_msg = Twist()
                 turn_twist_msg.angular.z = math.pi
 
                 now = rospy.Time.now()
                 rate = rospy.Rate(10)
 
-                while rospy.Time.now() < now + rospy.Duration.from_sec(1.5):
+                while rospy.Time.now() < now + rospy.Duration.from_sec(1):
                     self.cmd_vel_pub.publish(turn_twist_msg)
                     rate.sleep() 
                 self.state += 1
             
             if self.state == 2:
-                print("WAAAAAAAAAAAAAAALK")
+                rospy.loginfo("%s: Moving forward", self.node_name)
                 walk_twist_msg = Twist()
                 walk_twist_msg.linear.x = 1
 
@@ -138,7 +135,6 @@ class StateMachine(object):
             
             if self.state == 3:
                 try:
-                    print("PLACEEEEEEEE")
                     rospy.loginfo("%s: Placing the cube", self.node_name)
                     place_srv = rospy.ServiceProxy(self.place_srv_nm, SetBool)
                     place_req = place_srv()
