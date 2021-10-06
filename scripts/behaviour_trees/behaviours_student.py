@@ -9,6 +9,10 @@ from actionlib import SimpleActionClient
 from play_motion_msgs.msg import PlayMotionAction, PlayMotionGoal
 from robotics_project.srv import MoveHead, MoveHeadRequest, MoveHeadResponse
 
+from std_srvs.srv import Empty, SetBool, SetBoolRequest  
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
+import math
+
 
 class counter(pt.behaviour.Behaviour):
 
@@ -34,7 +38,6 @@ class counter(pt.behaviour.Behaviour):
 
         # succeed after count is done
         return pt.common.Status.FAILURE if self.i <= self.n else pt.common.Status.SUCCESS
-
 
 class go(pt.behaviour.Behaviour):
 
@@ -183,3 +186,142 @@ class movehead(pt.behaviour.Behaviour):
         # if still trying
         else:
             return pt.common.Status.RUNNING
+
+class detectcube(pt.behaviour.Behaviour):
+	
+	def __init__(self):
+		rospy.loginfo("Initialising detectcube behaviour.")
+		self.done = False
+
+		def aruco_pose_cb(aruco_pose_msg):
+			print("pose", aruco_pose_msg)
+			self.done = True
+
+		aruco_pose_subs = rospy.Subscriber("/detected_aruco_pose", PoseStamped, aruco_pose_cb)
+		self.tried = True
+
+		super(detectcube, self).__init__("Detect cube!")
+		
+	def update(self):
+		if(self.done):
+			return pt.common.Status.SUCCESS
+		else:
+			return pt.common.Status.RUNNING
+
+class pickup(pt.behaviour.Behaviour):
+
+    """
+    Request to pick up the cube
+    """
+
+    def __init__(self):
+
+        rospy.loginfo("Initialising pickup behaviour.")
+
+        self.pick_srv_nm = rospy.get_param(rospy.get_name() + '/pick_srv')
+        rospy.wait_for_service(self.pick_srv_nm, timeout=30)
+
+        self.pick_srv = rospy.ServiceProxy(self.pick_srv_nm, SetBool)
+
+        # execution checker
+        self.requested = False
+        self.finished = False
+
+        # become a behaviour
+        super(pickup, self).__init__("Pickup!")
+
+    def update(self):
+
+        # already tucked the arm
+        if self.finished: 
+            return pt.common.Status.SUCCESS
+        
+        # command to tuck arm if haven't already
+        elif not self.requested:
+
+            # send the goal
+            self.pick_req = self.pick_srv()
+            self.requested = True
+
+            # tell the tree you're running
+            return pt.common.Status.RUNNING
+
+        # if I was succesful! :)))))))))
+        elif self.pick_req.success:
+
+            # than I'm finished!
+            self.finished = True
+            return pt.common.Status.SUCCESS
+
+        # if failed
+        elif not self.pick_req.success:
+            return pt.common.Status.FAILURE
+
+        # if I'm still trying :|
+        else:
+            return pt.common.Status.RUNNING
+
+
+
+class moveToTable(pt.behaviour.Behaviour):
+
+    """
+    Move to table
+    """
+
+    def __init__(self):
+
+        rospy.loginfo("Initialising moveToTable behaviour")
+
+        # action space
+        #self.cmd_vel_top = rospy.get_param(rospy.get_name() + '/cmd_vel_topic')
+        self.cmd_vel_top = "/key_vel"
+        #rospy.loginfo(self.cmd_vel_top)
+        self.cmd_vel_pub = rospy.Publisher(self.cmd_vel_top, Twist, queue_size=10)
+
+        # command
+        self.move_msg = Twist()
+        
+        self.turned = False
+        self.moved = False
+
+        # become a behaviour
+        super(moveToTable, self).__init__("Move to table")
+
+    def update(self):
+        if not self.turned:
+            turn_twist_msg = Twist()
+            turn_twist_msg.angular.z = math.pi/3.0
+            
+            now = rospy.Time.now()
+            rate = rospy.Rate(10)
+            
+            rospy.loginfo("Turning")
+            
+            while rospy.Time.now() < now + rospy.Duration.from_sec(3):
+                self.cmd_vel_pub.publish(turn_twist_msg)
+                rate.sleep() 
+
+            self.turned = True
+
+            return pt.common.Status.RUNNING
+
+        elif not self.moved:
+            walk_twist_msg = Twist()
+            walk_twist_msg.linear.x = 1.0/3.0
+            
+            now = rospy.Time.now()
+            rate = rospy.Rate(10)
+
+            rospy.loginfo("Moving")
+            
+            while rospy.Time.now() < now + rospy.Duration.from_sec(3):
+                self.cmd_vel_pub.publish(walk_twist_msg)
+                rate.sleep() 
+
+            self.moved = True
+
+            return pt.common.Status.RUNNING
+        
+        else:
+            return pt.common.Status.SUCCESS

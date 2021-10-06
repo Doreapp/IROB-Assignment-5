@@ -270,7 +270,6 @@ class ManipulateAruco(object):
 		rospy.loginfo("Raise object done.")
 
 	def aruco_pose_cb(self, aruco_pose_msg):
-		print("Pose found", aruco_pose_msg)
 		self.aruco_pose = aruco_pose_msg
 		self.aruco_pose_rcv = True
 
