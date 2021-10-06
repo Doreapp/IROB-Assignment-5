@@ -121,6 +121,8 @@ class tuckarm(pt.behaviour.Behaviour):
 
             # than I'm finished!
             self.finished = True
+
+            rospy.loginfo("Arm tucked.")
             return pt.common.Status.SUCCESS
 
         # if failed
@@ -262,7 +264,6 @@ class pickup(pt.behaviour.Behaviour):
             return pt.common.Status.RUNNING
 
 
-
 class moveToTable(pt.behaviour.Behaviour):
 
     """
@@ -325,3 +326,57 @@ class moveToTable(pt.behaviour.Behaviour):
         
         else:
             return pt.common.Status.SUCCESS
+
+
+class place(pt.behaviour.Behaviour):
+
+    """
+    Request to place the cube
+    """
+
+    def __init__(self):
+
+        rospy.loginfo("Initialising place behaviour.")
+
+        self.place_srv_nm = rospy.get_param(rospy.get_name() + '/place_srv')
+        rospy.wait_for_service(self.place_srv_nm, timeout=30)
+
+        self.place_srv = rospy.ServiceProxy(self.place_srv_nm, SetBool)
+
+        # execution checker
+        self.requested = False
+        self.finished = False
+
+        # become a behaviour
+        super(place, self).__init__("Place!")
+
+    def update(self):
+
+        # already tucked the arm
+        if self.finished: 
+            return pt.common.Status.SUCCESS
+        
+        # command to tuck arm if haven't already
+        elif not self.requested:
+
+            # send the goal
+            self.place_req = self.place_srv()
+            self.requested = True
+
+            # tell the tree you're running
+            return pt.common.Status.RUNNING
+
+        # if I was succesful! :)))))))))
+        elif self.place_req.success:
+
+            # than I'm finished!
+            self.finished = True
+            return pt.common.Status.SUCCESS
+
+        # if failed
+        elif not self.place_req.success:
+            return pt.common.Status.FAILURE
+
+        # if I'm still trying :|
+        else:
+            return pt.common.Status.RUNNING

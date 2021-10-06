@@ -22,8 +22,13 @@ class BehaviourTree(ptr.trees.BehaviourTree):
 		# Move to next table
 		b3 = moveToTable()
 
+		b4 = place()
+
+		# TODO check if well placed
+		
+
 		# become the tree
-		tree = RSequence(name="Main sequence", children=[b0, b1, b2, b3])
+		tree = RSequence(name="Main sequence", children=[b0, b1, b2, b3, b4])
 		super(BehaviourTree, self).__init__(tree)
 
 		# execute the behaviour tree
