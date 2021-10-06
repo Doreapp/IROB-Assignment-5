@@ -3,7 +3,7 @@
 
   <!-- ROS PARAMETERS -->
   <!-- Initial robot pose in Gazebo: change for levels A, C or E (F for demo)-->
-  <arg name="student_level"         default="E"/>
+  <arg name="student_level"         default="C"/>
 
   <!-- System level -->
   <arg name="namespace_tiago"     default="/"/>
@@ -75,7 +75,7 @@
 
   <group ns="$(arg namespace_project)">
     <!-- Mission planner -->
-    <node pkg="robotics_project" type="sm_students.py" name="logic_state_machine" output="screen">
+    <node pkg="robotics_project" type="bt_students.py" name="logic_state_machine" output="screen">
       <param name="global_loc_srv" value=""/>
       <param name="clear_costmaps_srv"  value=""/>
       <param name="pick_srv"            value="/pickup"/>
@@ -115,11 +115,11 @@
     <!-- Aruco marker detector -->
     <node pkg="aruco_ros" type="single" name="aruco_single" output="screen">
         <param name="camera_frame"        value="xtion_rgb_optical_frame"/>
-        <param name="aruco_frame"         value="" />
+        <param name="aruco_frame"         value="map" />
         <remap from="/camera_info"        to="/xtion/rgb/camera_info" />
         <remap from="/image"              to="/xtion/rgb/image_rect_color" />
         <param name="marker_pose_topic"   value="/marker_pose_topic"/>
-        <param name="robot_base_frame"    value=""/>
+        <param name="robot_base_frame"    value="base_link"/>
     </node>
   </group>
 

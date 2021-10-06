@@ -1,47 +1,55 @@
 #!/usr/bin/env python
 
-import py_trees as pt, py_trees_ros as ptr, rospy
+import py_trees as pt
+import py_trees_ros as ptr
+import rospy
 from behaviours_student import *
 from reactive_sequence import RSequence
+
+from std_srvs.srv import Empty, SetBool, SetBoolRequest  
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 
 class BehaviourTree(ptr.trees.BehaviourTree):
 
 	def __init__(self):
 
-		rospy.loginfo("Initialising behaviour tree")
-
-		# go to door until at door
-		b0 = pt.composites.Selector(
-			name="Go to door fallback", 
-			children=[counter(30, "At door?"), go("Go to door!", 1, 0)]
-		)
-
 		# tuck the arm
-		b1 = tuckarm()
+		b0 = tuckarm()
 
-		# go to table
-		b2 = pt.composites.Selector(
-			name="Go to table fallback",
-			children=[counter(5, "At table?"), go("Go to table!", 0, -1)]
-		)
+		b1 = movehead("down")
 
-		# move to chair
-		b3 = pt.composites.Selector(
-			name="Go to chair fallback",
-			children=[counter(13, "At chair?"), go("Go to chair!", 1, 0)]
-		)
-
-		# lower head
-		b4 = movehead("down")
+		b2 = detectcube()
 
 		# become the tree
-		tree = RSequence(name="Main sequence", children=[b0, b1, b2, b3, b4])
+		tree = RSequence(name="Main sequence", children=[b0, b1, b2])
 		super(BehaviourTree, self).__init__(tree)
 
 		# execute the behaviour tree
 		rospy.sleep(5)
 		self.setup(timeout=10000)
 		while not rospy.is_shutdown(): self.tick_tock(1)	
+
+
+class detectcube(pt.behaviour.Behaviour):
+	
+	def __init__(self):
+		rospy.loginfo("Initialising detectcube behaviour.")
+		self.done = False
+
+		def aruco_pose_cb(aruco_pose_msg):
+			print("pose", aruco_pose_msg)
+			self.done = True
+
+		aruco_pose_subs = rospy.Subscriber("/detected_aruco_pose", PoseStamped, aruco_pose_cb)
+		self.tried = True
+
+		super(detectcube, self).__init__("Detect cube!")
+		
+	def update(self):
+		if(self.done):
+			return pt.common.Status.SUCCESS
+		else:
+			return pt.common.Status.RUNNING
 
 if __name__ == "__main__":
 
