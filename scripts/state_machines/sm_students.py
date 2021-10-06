@@ -85,10 +85,29 @@ class StateMachine(object):
 
 
     def check_states(self):
-        while not rospy.is_shutdown() and self.state != 4:
-            
-            # State 0: Move the robot "manually" to door
+        ERROR_STATE = 10
+        while not rospy.is_shutdown() and self.state != 5:
+            # State 0: Tuck the arm
             if self.state == 0:
+                rospy.loginfo("%s: Tucking the arm...", self.node_name)
+                goal = PlayMotionGoal()
+                goal.motion_name = 'home'
+                goal.skip_planning = True
+                self.play_motion_ac.send_goal(goal)
+                success_tucking = self.play_motion_ac.wait_for_result(rospy.Duration(100.0))
+
+                if success_tucking:
+                    rospy.loginfo("%s: Arm tuck: ", self.play_motion_ac.get_result())
+                    self.state += 1
+                else:
+                    self.play_motion_ac.cancel_goal()
+                    rospy.logerr("%s: play_motion failed to tuck arm, reset simulation", self.node_name)
+                    self.state = ERROR_STATE
+
+                rospy.sleep(1)
+            
+            # State 1: Pick the cube
+            if self.state == 1:
                 try:
                     rospy.loginfo("%s: Picking the cube", self.node_name)
                     pick_srv = rospy.ServiceProxy(self.pick_srv_nm, SetBool)
@@ -99,15 +118,16 @@ class StateMachine(object):
                         rospy.loginfo("%s: Picking succeded!", self.node_name)
                     else:
                         rospy.loginfo("%s: Picking failed!", self.node_name)
-                        self.state = 5
+                        self.state = ERROR_STATE
 
                     rospy.sleep(3)
                 
                 except rospy.ServiceException as e:
                     print ("Service call to pick server failed: %s"%e)
-                    self.state = 5
+                    self.state = ERROR_STATE
 
-            if self.state == 1:
+            # State 2: Turn around 
+            if self.state == 2:
                 rospy.loginfo("%s: Turning", self.node_name)
                 duration = 3.0 # Duration in second
                 turn_twist_msg = Twist()
@@ -121,7 +141,8 @@ class StateMachine(object):
                     rate.sleep() 
                 self.state += 1
             
-            if self.state == 2:
+            # State 3: Move forward
+            if self.state == 3:
                 rospy.loginfo("%s: Moving forward", self.node_name)
                 duration = 3.0 # Duration in second
                 walk_twist_msg = Twist()
@@ -135,7 +156,8 @@ class StateMachine(object):
                     rate.sleep() 
                 self.state += 1
             
-            if self.state == 3:
+            # Stage 4: Place the cube
+            if self.state == 4:
                 try:
                     rospy.loginfo("%s: Placing the cube", self.node_name)
                     place_srv = rospy.ServiceProxy(self.place_srv_nm, SetBool)
@@ -146,16 +168,16 @@ class StateMachine(object):
                         rospy.loginfo("%s: Placing succeded!", self.node_name)
                     else:
                         rospy.loginfo("%s: Placing failed!", self.node_name)
-                        self.state = 5
+                        self.state = ERROR_STATE
 
                     rospy.sleep(3)
                 
                 except rospy.ServiceException as e:
                     print ("Service call to pick server failed: %s"%e)
-                    self.state = 5
+                    self.state = ERROR_STATE
 
             # Error handling
-            if self.state == 5:
+            if self.state == ERROR_STATE:
                 rospy.logerr("%s: State machine failed. Check your code and try again!", self.node_name)
                 return
 
