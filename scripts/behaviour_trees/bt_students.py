@@ -26,7 +26,7 @@ class BehaviourTree(ptr.trees.BehaviourTree):
 
 		b5 = pt.composites.Selector(
 			name="Cube placed ? fallback",
-			children=[cubePlaced(), RSequence(name="Restart sequence", children=[tuckarm(), moveToTable()])]
+			children=[cubePlaced(), moveToTable()]
 		)
 		# Move to table only change table, so can be called noz to move from table 2 to table 1
 		
