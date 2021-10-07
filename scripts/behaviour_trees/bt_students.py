@@ -24,11 +24,15 @@ class BehaviourTree(ptr.trees.BehaviourTree):
 
 		b4 = place()
 
-		# TODO check if well placed
+		b5 = pt.composites.Selector(
+			name="Cube placed ? fallback",
+			children=[cubePlaced(), RSequence(name="Restart sequence", children=[tuckarm(), moveToTable()])]
+		)
+		# Move to table only change table, so can be called noz to move from table 2 to table 1
 		
 
 		# become the tree
-		tree = RSequence(name="Main sequence", children=[b0, b1, b2, b3, b4])
+		tree = RSequence(name="Main sequence", children=[b0, b1, b2, b3, b4, b5])
 		super(BehaviourTree, self).__init__(tree)
 
 		# execute the behaviour tree

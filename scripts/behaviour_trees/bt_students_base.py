@@ -44,23 +44,6 @@ class BehaviourTree(ptr.trees.BehaviourTree):
 		while not rospy.is_shutdown(): self.tick_tock(1)	
 
 
-class detectcube(pt.behaviour.Behaviour):
-
-    def __init__(self, direction):
-
-        rospy.loginfo("Initialising detectcube behaviour.")
-
-		# TODO
-
-        # execution checker
-        self.tried = False
-        self.done = False
-
-        # become a behaviour
-        super(movehead, self).__init__("Detect cube!")
-
-    def update(self):
-        return pt.common.Status.SUCCESS
 
 if __name__ == "__main__":
 

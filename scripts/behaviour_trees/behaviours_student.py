@@ -189,31 +189,12 @@ class movehead(pt.behaviour.Behaviour):
         else:
             return pt.common.Status.RUNNING
 
-class detectcube(pt.behaviour.Behaviour):
-	
-	def __init__(self):
-		rospy.loginfo("Initialising detectcube behaviour.")
-		self.done = False
-
-		def aruco_pose_cb(aruco_pose_msg):
-			print("pose", aruco_pose_msg)
-			self.done = True
-
-		aruco_pose_subs = rospy.Subscriber("/detected_aruco_pose", PoseStamped, aruco_pose_cb)
-		self.tried = True
-
-		super(detectcube, self).__init__("Detect cube!")
-		
-	def update(self):
-		if(self.done):
-			return pt.common.Status.SUCCESS
-		else:
-			return pt.common.Status.RUNNING
 
 class pickup(pt.behaviour.Behaviour):
 
     """
-    Request to pick up the cube
+    Request to pick up the cube using /pick_srv
+    It knows the cube placed thanks to the arco detector
     """
 
     def __init__(self):
@@ -233,24 +214,19 @@ class pickup(pt.behaviour.Behaviour):
         super(pickup, self).__init__("Pickup!")
 
     def update(self):
-
-        # already tucked the arm
+        # already picked up
         if self.finished: 
             return pt.common.Status.SUCCESS
         
-        # command to tuck arm if haven't already
+        # command to pick up if haven't already
         elif not self.requested:
 
             # send the goal
             self.pick_req = self.pick_srv()
             self.requested = True
-
-            # tell the tree you're running
             return pt.common.Status.RUNNING
 
-        # if I was succesful! :)))))))))
         elif self.pick_req.success:
-
             # than I'm finished!
             self.finished = True
             return pt.common.Status.SUCCESS
@@ -263,11 +239,12 @@ class pickup(pt.behaviour.Behaviour):
         else:
             return pt.common.Status.RUNNING
 
-
 class moveToTable(pt.behaviour.Behaviour):
 
     """
-    Move to table
+    Move to table:
+        Rotate by 180 degrees in 3s
+        Then move forward of 1m in 3s
     """
 
     def __init__(self):
@@ -275,14 +252,10 @@ class moveToTable(pt.behaviour.Behaviour):
         rospy.loginfo("Initialising moveToTable behaviour")
 
         # action space
-        #self.cmd_vel_top = rospy.get_param(rospy.get_name() + '/cmd_vel_topic')
-        self.cmd_vel_top = "/key_vel"
-        #rospy.loginfo(self.cmd_vel_top)
+        self.cmd_vel_top = rospy.get_param(rospy.get_name() + '/cmd_vel_topic')
         self.cmd_vel_pub = rospy.Publisher(self.cmd_vel_top, Twist, queue_size=10)
-
-        # command
-        self.move_msg = Twist()
         
+        # Two steps: turn and move
         self.turned = False
         self.moved = False
 
@@ -291,6 +264,7 @@ class moveToTable(pt.behaviour.Behaviour):
 
     def update(self):
         if not self.turned:
+            # Turn 
             turn_twist_msg = Twist()
             turn_twist_msg.angular.z = math.pi/3.0
             
@@ -308,6 +282,7 @@ class moveToTable(pt.behaviour.Behaviour):
             return pt.common.Status.RUNNING
 
         elif not self.moved:
+            # Move forward 
             walk_twist_msg = Twist()
             walk_twist_msg.linear.x = 1.0/3.0
             
@@ -327,11 +302,10 @@ class moveToTable(pt.behaviour.Behaviour):
         else:
             return pt.common.Status.SUCCESS
 
-
 class place(pt.behaviour.Behaviour):
 
     """
-    Request to place the cube
+    Request to place the cube using /place_srv
     """
 
     def __init__(self):
@@ -351,24 +325,18 @@ class place(pt.behaviour.Behaviour):
         super(place, self).__init__("Place!")
 
     def update(self):
-
-        # already tucked the arm
+        # already placed the cube
         if self.finished: 
             return pt.common.Status.SUCCESS
         
-        # command to tuck arm if haven't already
+        # command to plae
         elif not self.requested:
-
             # send the goal
             self.place_req = self.place_srv()
             self.requested = True
-
-            # tell the tree you're running
             return pt.common.Status.RUNNING
 
-        # if I was succesful! :)))))))))
         elif self.place_req.success:
-
             # than I'm finished!
             self.finished = True
             return pt.common.Status.SUCCESS
@@ -380,3 +348,68 @@ class place(pt.behaviour.Behaviour):
         # if I'm still trying :|
         else:
             return pt.common.Status.RUNNING
+
+
+class cubePlaced(pt.behaviour.Behaviour):
+
+    """
+    Check if the cube is well placed.
+    Subscribe the topic /aruco_pose_topic and wait for a message, up to 10s
+        If receive no message: fail
+        If receive a message with the cube
+            If the cube Z is too low: fail
+            Otherwise: Succeed
+    """
+
+    def __init__(self):
+
+        rospy.loginfo("Initialising cubePlaced behaviour.")
+
+        # Wait constants
+        self.wait_rate = rospy.Rate(1)
+        self.wait_count = 10
+        self.count = 0
+
+        # Min z to validate
+        self.min_cube_z = 0.40
+
+        self.done = False
+        self.started = False
+
+        # become a behaviour
+        super(cubePlaced, self).__init__("Check cube position")
+
+    def update(self):
+        if not self.started:
+            # Start: Subscribe to the topic
+            def pose_cb(aruco_pose_msg):
+                # Receive a position message
+                if self.done: 
+                    return 
+                rospy.loginfo("Callback detected cube :"+ str(aruco_pose_msg))
+                self.pose = aruco_pose_msg
+                self.done = True
+                
+            # Subscribe
+            pose_top = rospy.get_param(rospy.get_name() + '/aruco_pose_topic')
+            rospy.Subscriber(pose_top, PoseStamped, pose_cb)
+            self.started = True
+            return pt.common.Status.RUNNING
+
+        if self.done:
+            # Check cube pose
+            if self.pose.pose.position.z < self.min_cube_z:
+                return pt.common.Status.FAILURE
+            else:
+                return pt.common.Status.SUCCESS
+
+        elif self.count < self.wait_count:
+            rospy.loginfo("Cube detection waiting...")
+            # Keep waiting
+            self.count+=1
+            self.wait_rate.sleep()
+            return pt.common.Status.RUNNING
+        
+        else:
+            # Do not detect the cube in time
+            return pt.common.Status.FAILURE
