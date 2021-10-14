@@ -346,7 +346,7 @@ class moveToTable(pt.behaviour.Behaviour):
         elif not self.moved:
             # Move forward 
             walk_twist_msg = Twist()
-            walk_twist_msg.linear.x = 1.0/3.0
+            walk_twist_msg.linear.x = 0.9/3.0
             
             now = rospy.Time.now()
             rate = rospy.Rate(10)
