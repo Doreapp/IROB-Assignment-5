@@ -134,66 +134,6 @@ class tuckarm(pt.behaviour.Behaviour):
             return pt.common.Status.RUNNING
 
 
-class safearm(pt.behaviour.Behaviour):
-
-    """
-    Sends a goal to the tuck arm action server.
-    Returns running whilst awaiting the result,
-    success if the action was succesful, and v.v..
-    """
-
-    def __init__(self):
-
-        rospy.loginfo("Initialising safearm behaviour.")
-
-        # Set up action client
-        self.play_motion_ac = SimpleActionClient("/play_motion", PlayMotionAction)
-
-        # personal goal setting
-        self.goal = PlayMotionGoal()
-        self.goal.motion_name = 'pregrasp'
-        self.goal.skip_planning = True
-
-        # execution checker
-        self.sent_goal = False
-        self.finished = False
-
-        # become a behaviour
-        super(safearm, self).__init__("Safe arm!")
-
-    def update(self):
-
-        # already tucked the arm
-        if self.finished: 
-            return pt.common.Status.SUCCESS
-        
-        # command to tuck arm if haven't already
-        elif not self.sent_goal:
-
-            # send the goal
-            self.play_motion_ac.send_goal(self.goal)
-            self.sent_goal = True
-
-            # tell the tree you're running
-            return pt.common.Status.RUNNING
-
-        # if I was succesful! :)))))))))
-        elif self.play_motion_ac.get_result():
-
-            # than I'm finished!
-            self.finished = True
-
-            rospy.loginfo("Arm safe.")
-            return pt.common.Status.SUCCESS
-
-        # if failed
-        elif not self.play_motion_ac.get_result():
-            return pt.common.Status.FAILURE
-
-        # if I'm still trying :|
-        else:
-            return pt.common.Status.RUNNING
-
 class movehead(pt.behaviour.Behaviour):
 
     """
@@ -434,7 +374,7 @@ class cubePlaced(pt.behaviour.Behaviour):
 
         # Wait constants
         self.wait_rate = rospy.Rate(1)
-        self.wait_count = 10
+        self.wait_count = 20
         self.count = 0
 
         # Min z to validate
