@@ -327,17 +327,19 @@ class moveToTable(pt.behaviour.Behaviour):
         if not self.turned:
             # Turn 
             turn_twist_msg = Twist()
-            turn_twist_msg.angular.z = math.pi/3.0
+            turn_twist_msg.angular.z = math.pi/5.0
             
             now = rospy.Time.now()
             rate = rospy.Rate(10)
             
             rospy.loginfo("Turning")
             
-            while rospy.Time.now() < now + rospy.Duration.from_sec(3):
+            while rospy.Time.now() < now + rospy.Duration.from_sec(5):
                 self.cmd_vel_pub.publish(turn_twist_msg)
                 rate.sleep() 
 
+            # Stop the robot
+            self.cmd_vel_pub.publish(Twist())
             self.turned = True
             rospy.sleep(1)
 
@@ -357,6 +359,9 @@ class moveToTable(pt.behaviour.Behaviour):
                 self.cmd_vel_pub.publish(walk_twist_msg)
                 rate.sleep() 
 
+
+            # Stop the robot
+            self.cmd_vel_pub.publish(Twist())
             self.moved = True
 
             return pt.common.Status.RUNNING
